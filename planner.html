@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiber Planner</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; text-align: center; }
+        .act { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 5px; }
+        .act:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+
+    <h1>Mening Kiber Plannerim</h1>
+
+<script>
+  /* ================= FIREBASE ULASH ================= */
+  const firebaseConfig = {
+    apiKey: "AIzaSyANJX_S3Ls3FRBMYDvqdU_1VAI1G39XEK4",
+    authDomain: "cyber-2ddd7.firebaseapp.com",
+    projectId: "cyber-2ddd7",
+    storageBucket: "cyber-2ddd7.firebasestorage.app",
+    messagingSenderId: "19994302035",
+    appId: "1:19994302035:web:097f700652a8e9521e18a6"
+  };
+  
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  /* ================= GOOGLE BILAN KIRISH ================= */
+  const btnLogin = `<button class="act" id="loginBtn">🔓 Google bilan kirish</button><button class="act" id="logoutBtn" style="display:none">🔒 Chiqish</button><br><span id="userInfo" style="color:#94a3b8; display:inline-block; margin-top:10px;"></span>`;
+  document.body.insertAdjacentHTML("afterbegin", `<div>${btnLogin}</div>`);
+
+  let userId = null;
+  document.getElementById("loginBtn").onclick = () => 
+    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  document.getElementById("logoutBtn").onclick = () => auth.signOut();
+
+  auth.onAuthStateChanged(user => {
+    if(user){
+      userId = user.uid;
+      document.getElementById("loginBtn").style.display = "none";
+      document.getElementById("logoutBtn").style.display = "inline-block";
+      document.getElementById("userInfo").textContent = "👤 " + user.displayName;
+      syncDown();
+    } else {
+      userId = null;
+      document.getElementById("loginBtn").style.display = "inline-block";
+      document.getElementById("logoutBtn").style.display = "none";
+      document.getElementById("userInfo").textContent = "";
+    }
+  });
+
+  /* ================= SAQLASH: lokal + bulut ================= */
+  const KEY = "kiber_planner_v2";
+  let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+  let remoteState = null;
+
+  function save(){
+    localStorage.setItem(KEY, JSON.stringify(state));
+    if(userId){
+      db.collection("planners").doc(userId).set({state: state})
+        .catch(e => console.log("Bulutga yozishda xatolik:", e.message));
+    }
+  }
+
+  function syncDown(){
+    db.collection("planners").doc(userId).get().then(doc => {
+      if(doc.exists){
+        remoteState = doc.data().state;
+        if(JSON.stringify(remoteState) !== JSON.stringify(state)){
+          if(confirm("Bulutdagi ma'lumot lokal ma'lumotdan farq qiladi. Bulutdagini yuklaymizmi?")){
+            state = remoteState;
+            localStorage.setItem(KEY, JSON.stringify(state));
+          } else {
+            save();
+          }
+        }
+      }
+    });
+    
+    db.collection("planners").doc(userId).onSnapshot(doc => {
+      if(doc.exists && JSON.stringify(doc.data().state) !== JSON.stringify(state)){
+        state = doc.data().state;
+        localStorage.setItem(KEY, JSON.stringify(state));
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
